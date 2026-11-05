@@ -1,49 +1,37 @@
-# Paraşüt Teklif Raporu
+# Paraşüt Teklif Raporu — Masaüstü uygulaması
 
-OAuth 2.0 Authorization Code akışını Python ile tamamlar, belirli tarih aralığındaki Paraşüt satış tekliflerini listeler ve UTF-8 `.txt` dosyasına kaydeder. Python sürümü standart kütüphaneyi kullanır; `pip`, `npm` veya ek paket kurulumu gerekmez.
+Teklifleri tarih aralığına göre Paraşüt API'den çeker, ekranda listeler ve TXT olarak kaydeder. Bu sürüm **Tkinter masaüstü arayüzüdür**; terminalde komut yazmanız veya yerel web sunucusu başlatmanız gerekmez. API istekleri Python tarafından yapılır, tarayıcı CORS sorunu yaşanmaz. Ek Python paketi, pip veya npm gerekmez.
 
-## Önce Paraşüt uygulamasını kaydedin
+## İlk kurulum (bir kez)
 
-1. Paraşüt DevHub'daki [OAuth rehberini](https://devhub.parasut.com/oauth-rehberi) izleyerek bir API uygulaması oluşturun.
-2. Uygulamanın `client_id` ve `client_secret` bilgilerini alın. `client_secret` gizlidir; kaynak koduna, GitHub'a veya başkalarıyla paylaşmayın.
-3. Uygulamanızın izin verilen/callback (redirect) URI listesine aşağıdaki adresi **birebir** kaydedin:
+1. Python 3.9 veya üzerini kurun. Windows'ta Python kurulumunda **tcl/tk (IDLE ve Tkinter)** seçeneği kurulu olmalı.
+2. Paraşüt DevHub'da API uygulamanızın `client_id` ve `client_secret` bilgilerini alın.
+3. Geliştirici panelindeki Redirect URI / callback adresine şu adresi **birebir** kaydedin:
 
    ```text
    http://127.0.0.1:8765/callback
    ```
 
-   Paraşüt paneli bu URI'yi kabul etmezse kendi belgelerinin izin verdiği localhost callback biçimini kullanın ve programda da tam aynı URI'yi girin. Uygulama yalnızca `127.0.0.1` veya `localhost` HTTP callback'lerini kabul eder.
+   OAuth standart akışının Paraşüt'ten uygulamaya dönüş yapabilmesi için callback gerekir. Bu adres program tarafından bilgisayarınız içinde arka planda dinlenir; siz tarayıcı adres çubuğuna yazmaz, sunucu çalıştırmaz veya komut penceresi kullanmazsınız.
 
 ## Windows'ta çalıştırma
 
 1. `parasut_quotes.py` dosyasını bilgisayarınıza indirin.
-2. Python 3.9 veya üzerini kurup kontrol edin: `py --version` (veya `python --version`). Başka paket yüklemeyin.
-3. Dosyanın bulunduğu klasörde Komut İstemi açın (klasör adres çubuğuna `cmd` yazıp Enter'a basın).
-4. Çalıştırın:
+2. Dosyaya çift tıklayın. Birlikte açma sorarsa Python ile açın. Konsol penceresi istemiyorsanız dosyayı `.pyw` uzantısıyla kaydedip çift tıklayın; arayüz aynıdır.
+3. Program penceresinde `client_id`, `client_secret`, Paraşüt `Company ID` ve tarih aralığını doldurun.
+4. **Paraşüt'e bağlan ve teklifleri getir** düğmesine basın. İlk kullanımda tarayıcı Paraşüt giriş/izin sayfasını açar; giriş ve onay sonrasında uygulama otomatik devam eder.
+5. Teklifleri tabloda görün. **TXT olarak kaydet** düğmesiyle dosya adını ve kaydedilecek yeri seçin.
 
-   ```bash
-   py parasut_quotes.py
-   ```
+macOS'ta Python/Tkinter yüklü olmalıdır; `.py` dosyasını Python Launcher ile açabilirsiniz. Linux dağıtımında Tkinter ayrı paket olarak gerekebilir (ör. Debian/Ubuntu: `python3-tk`).
 
-   Gerekirse `python parasut_quotes.py` kullanın. macOS/Linux'ta `python3 parasut_quotes.py` çalıştırın.
-5. Program `client_id`, `client_secret`, kayıtlı callback URI ve Paraşüt `company ID` bilgilerini sorar. Client secret terminalde yazarken görünmez.
-6. İlk çalıştırmada tarayıcı Paraşüt'e yönlendirilir. Hesapta oturum açıp uygulama erişimine izin verin. Onaydan sonra `127.0.0.1` callback sayfası açılır; terminale dönün.
-7. Başlangıç ve bitiş tarihlerini `YYYY-AA-GG` biçiminde girin. Program teklifleri çeker, ekranda listeler ve belirtilen `.txt` dosyasına yazar.
+## Güvenlik ve token yenileme
 
-## OAuth ve token saklama
+- `client_secret` parola alanında gizli gösterilir, kaynak koduna yazılmaz ve dosyaya kaydedilmez.
+- Access/refresh token'lar kullanıcının yerel yapılandırma alanında tutulur; Windows'ta `%APPDATA%\\ParasutQuoteExporter\\tokens.json`, macOS/Linux'ta `~/.config/parasut-quote-exporter/tokens.json`. Bu dosyay�� paylaşmayın veya GitHub'a yüklemeyin.
+- Süresi dolan access token program tarafından OAuth `refresh_token` akışıyla yenilenir. Yenileme başarısızsa yeniden Paraşüt izni ister.
+- Hesap şifresi bu uygulamaya girilmez; şifre yalnızca Paraşüt'ün kendi giriş sayfasında kullanılır.
+- Callback portu 8765 başka bir uygulama tarafından kullanılıyorsa kapatın. Callback kaydı değişirse geliştirici paneli ve uygulama ayarlarının aynı URI olduğundan emin olun.
 
-- Akış: Paraşüt `/oauth/authorize` → doğrulanmış `state` ile localhost callback → `/oauth/token` üzerinde `grant_type=authorization_code` → access/refresh token.
-- Access token'ın süresi dolduğunda program `grant_type=refresh_token` ile yenilemeyi dener. Refresh token döndürülmüşse yenisini de saklar; süresi dolmuş/iptal edilmiş token'da yeniden yetki ister.
-- Paraşüt client secret her çalıştırmada gizli olarak sorulur; dosyaya kaydedilmez. Token bilgileri script/repository yerine kullanıcının yerel yapılandırma klasöründe saklanır (Windows `%APPDATA%\\ParasutQuoteExporter\\tokens.json`; macOS/Linux `~/.config/parasut-quote-exporter/tokens.json`). Bu dosyayı paylaşmayın veya GitHub'a koymayın; erişimi iptal etmek için dosyayı silip Paraşüt uygulamasındaki izni kaldırın.
-- OAuth callback portu `8765` kullanımda olmalı. Başka bir uygulama portu kullanıyorsa kapatın ve callback URI'yi hem geliştirici panelinde hem programda aynı şekilde değiştirin.
-- Paraşüt hesabı şifresi bu uygulamaya girilmez; şifre yalnızca Paraşüt'ün kendi giriş sayfasında kullanılır.
+## Teklif alanları
 
-## Teklifler
-
-- Tarih aralığı `sales_quotes` listesindeki `issue_date` alanına filtre uygular ve başlangıç/bitiş tarihlerini dahil eder.
-- API sayfalaması takip edilir. Teklif metni varsa `name`, `title`, `description` ve `number` alanları kullanılır; yoksa teklif ID'si gösterilir.
-- API hataları (ör. yetki yok, yanlış company ID, geçersiz token) terminalde açıklanır.
-
-## Not
-
-Bu araç Paraşüt API'sine doğrudan Python üzerinden HTTPS isteği yapar; tarayıcı CORS sorunu olmaz. OAuth client kaydı ve Paraşüt hesabı izinleri doğru yapılandırılmalıdır. Callback adresinin uygulama kaydında kabul edilmesi hesap/panel ayarlarına bağlı olabilir.
+Tarih filtresi `sales_quotes` listesindeki `issue_date` alanına uygulanır; başlangıç/bitiş tarihleri dahildir. Görünen teklif bilgisi mevcutsa `name`, `title`, `description` ve `number` alanlarından oluşturulur; hiçbiri yoksa teklif ID'si kullanılır.
