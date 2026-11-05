@@ -1,1 +1,285 @@
-this is an html file :)
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f7fb">
+  <title>Paraşüt Teklif Raporu</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #e4e7ec;
+      --primary: #5b4bdb;
+      --primary-dark: #4335b8;
+      --surface: #fff;
+      --background: #f6f7fb;
+      --danger: #b42318;
+      --success: #067647;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--ink);
+      font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { width: min(940px, calc(100% - 32px)); margin: 48px auto; }
+    header { margin-bottom: 24px; }
+    h1 { margin: 0 0 8px; font-size: clamp(1.7rem, 4vw, 2.2rem); letter-spacing: -.03em; }
+    h2 { margin: 0 0 16px; font-size: 1.15rem; }
+    p { margin: 0; color: var(--muted); }
+    .card {
+      margin: 16px 0;
+      padding: 24px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: 0 4px 16px rgb(16 24 40 / 4%);
+    }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    label { display: block; margin-bottom: 6px; font-weight: 650; font-size: .92rem; }
+    input {
+      width: 100%; min-height: 44px; padding: 10px 12px;
+      border: 1px solid #cfd4dc; border-radius: 9px; background: white;
+      color: var(--ink); font: inherit;
+    }
+    input:focus { outline: 3px solid rgb(91 75 219 / 18%); border-color: var(--primary); }
+    .help { margin-top: 6px; font-size: .84rem; color: var(--muted); }
+    .notice {
+      margin-top: 16px; padding: 12px 14px; border-radius: 10px;
+      background: #f2f4ff; color: #353078; font-size: .9rem;
+    }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+    button {
+      min-height: 42px; padding: 9px 16px; border: 0; border-radius: 9px;
+      background: var(--primary); color: white; font: inherit; font-weight: 650; cursor: pointer;
+    }
+    button:hover:not(:disabled) { background: var(--primary-dark); }
+    button.secondary { background: #eef0f5; color: var(--ink); }
+    button.secondary:hover:not(:disabled) { background: #e1e4eb; }
+    button:disabled { opacity: .58; cursor: wait; }
+    #status { min-height: 24px; margin-top: 14px; font-weight: 600; }
+    #status.error { color: var(--danger); }
+    #status.success { color: var(--success); }
+    .result-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .result-head h2 { margin: 0; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 11px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-size: .84rem; font-weight: 650; }
+    td:first-child { width: 150px; white-space: nowrap; }
+    .empty { color: var(--muted); }
+    [hidden] { display: none !important; }
+    @media (max-width: 640px) {
+      main { margin: 24px auto; }
+      .card { padding: 18px; }
+      .grid { grid-template-columns: 1fr; gap: 12px; }
+      .result-head { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Paraşüt Teklif Raporu</h1>
+      <p>Seçtiğiniz tarih aralığındaki teklifleri listeleyin ve adlarını metin dosyası olarak indirin.</p>
+    </header>
+
+    <section class="card" aria-labelledby="form-title">
+      <h2 id="form-title">Bağlantı ve tarih aralığı</h2>
+      <form id="report-form">
+        <div class="grid">
+          <div>
+            <label for="company-id">Şirket (company) ID</label>
+            <input id="company-id" name="companyId" inputmode="numeric" autocomplete="off" required placeholder="Örn. 12345">
+            <p class="help">Paraşüt API şirket ID'nizi girin.</p>
+          </div>
+          <div>
+            <label for="access-token">API erişim belirteci (access token)</label>
+            <input id="access-token" name="accessToken" type="password" autocomplete="new-password" required placeholder="Bearer token değerini girin">
+            <p class="help">Token değerini girin; başına “Bearer” yazmayın.</p>
+          </div>
+          <div>
+            <label for="date-from">Başlangıç tarihi (dahil)</label>
+            <input id="date-from" name="dateFrom" type="date" required>
+          </div>
+          <div>
+            <label for="date-to">Bitiş tarihi (dahil)</label>
+            <input id="date-to" name="dateTo" type="date" required>
+          </div>
+        </div>
+        <div class="notice">
+          Token bu sayfada yalnızca isteği yapmak için kullanılır; kaydedilmez ve dosyaya eklenmez. Bu uygulamaya client secret veya Paraşüt hesap şifresi yazmayın.
+        </div>
+        <div class="actions">
+          <button id="fetch-button" type="submit">Teklifleri getir</button>
+          <button id="download-button" class="secondary" type="button" disabled>TXT olarak indir</button>
+        </div>
+        <p id="status" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section id="results-card" class="card" aria-labelledby="results-title" hidden>
+      <div class="result-head">
+        <h2 id="results-title">Teklifler</h2>
+        <span id="result-count"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tarih</th><th>Teklif adı / açıklama</th></tr></thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // API çağrıları tarayıcıdan doğrudan Paraşüt'e gider. Tarayıcı CORS hatası verirse,
+    // güvenlik için token'ı bir sunucu tarafı ara servise taşımak gerekir.
+    const API_BASE = "https://api.parasut.com/v4";
+    const form = document.getElementById("report-form");
+    const fetchButton = document.getElementById("fetch-button");
+    const downloadButton = document.getElementById("download-button");
+    const statusEl = document.getElementById("status");
+    const resultsCard = document.getElementById("results-card");
+    const resultsBody = document.getElementById("results-body");
+    const resultCount = document.getElementById("result-count");
+    let latestQuotes = [];
+
+    function setStatus(message, kind = "") {
+      statusEl.textContent = message;
+      statusEl.className = kind;
+    }
+
+    function quoteLabel(quote) {
+      const a = quote.attributes || {};
+      // sales_quotes kaydında her hesapta "name" bulunmayabilir; number/description
+      // gibi alanlardan okunabilir bir ad türetiyoruz.
+      const parts = [a.name, a.title, a.description, a.number]
+        .map(value => value == null ? "" : String(value).trim())
+        .filter(Boolean);
+      return [...new Set(parts)].join(" — ") || `Teklif #${quote.id}`;
+    }
+
+    async function readError(response) {
+      let detail = `HTTP ${response.status}`;
+      try {
+        const body = await response.json();
+        if (Array.isArray(body.errors) && body.errors.length) {
+          detail = body.errors.map(error => error.detail || error.title || error.code).filter(Boolean).join("; ") || detail;
+        } else if (body.message) {
+          detail = body.message;
+        }
+      } catch (_) { /* Yanıt JSON değilse genel HTTP mesajını kullan. */ }
+      return detail;
+    }
+
+    async function loadAllQuotes(companyId, token, from, to) {
+      const firstUrl = new URL(`${API_BASE}/${encodeURIComponent(companyId)}/sales_quotes`);
+      firstUrl.searchParams.set("filter[issue_date][gte]", from);
+      firstUrl.searchParams.set("filter[issue_date][lte]", to);
+      firstUrl.searchParams.set("page[size]", "100");
+      firstUrl.searchParams.set("page[number]", "1");
+
+      const quotes = [];
+      const visited = new Set();
+      let url = firstUrl;
+      while (url && !visited.has(url.href)) {
+        visited.add(url.href);
+        const response = await fetch(url.href, {
+          headers: { "Authorization": `Bearer ${token}`, "Accept": "application/json" }
+        });
+        if (!response.ok) throw new Error(await readError(response));
+        const body = await response.json();
+        if (!Array.isArray(body.data)) throw new Error("API yanıtında beklenen teklifler listesi (data) bulunamadı.");
+        quotes.push(...body.data);
+
+        if (body.links && body.links.next) {
+          url = new URL(body.links.next, url);
+        } else if (body.data.length === 100) {
+          const nextUrl = new URL(url.href);
+          const currentPage = Number(nextUrl.searchParams.get("page[number]") || "1");
+          nextUrl.searchParams.set("page[number]", String(currentPage + 1));
+          url = nextUrl;
+        } else {
+          url = null;
+        }
+        setStatus(`${quotes.length} teklif alındı…`);
+      }
+      return quotes;
+    }
+
+    function renderQuotes(quotes) {
+      resultsBody.replaceChildren();
+      const sorted = [...quotes].sort((a, b) => {
+        const dateA = a.attributes?.issue_date || "";
+        const dateB = b.attributes?.issue_date || "";
+        return dateB.localeCompare(dateA);
+      });
+      for (const quote of sorted) {
+        const row = document.createElement("tr");
+        const dateCell = document.createElement("td");
+        const labelCell = document.createElement("td");
+        dateCell.textContent = quote.attributes?.issue_date || "—";
+        labelCell.textContent = quoteLabel(quote);
+        row.append(dateCell, labelCell);
+        resultsBody.append(row);
+      }
+      resultCount.textContent = `${quotes.length} teklif`;
+      resultsCard.hidden = false;
+      downloadButton.disabled = quotes.length === 0;
+    }
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      if (!form.reportValidity()) return;
+      const companyId = document.getElementById("company-id").value.trim();
+      const token = document.getElementById("access-token").value.trim();
+      const from = document.getElementById("date-from").value;
+      const to = document.getElementById("date-to").value;
+      if (from > to) {
+        setStatus("Başlangıç tarihi bitiş tarihinden sonra olamaz.", "error");
+        return;
+      }
+
+      fetchButton.disabled = true;
+      downloadButton.disabled = true;
+      latestQuotes = [];
+      resultsCard.hidden = true;
+      setStatus("Paraşüt API'sinden teklifler alınıyor…");
+      try {
+        latestQuotes = await loadAllQuotes(companyId, token, from, to);
+        renderQuotes(latestQuotes);
+        setStatus(`${latestQuotes.length} teklif bulundu.`, "success");
+      } catch (error) {
+        const message = error instanceof TypeError
+          ? "İstek yapılamadı. Bu bir CORS/ağ sorunu olabilir; sayfayı yerel sunucu üzerinden açıp deneyin. Devam ederse API CORS izni vermiyor olabilir."
+          : error.message;
+        setStatus(`Teklifler alınamadı: ${message}`, "error");
+      } finally {
+        fetchButton.disabled = false;
+      }
+    });
+
+    downloadButton.addEventListener("click", () => {
+      const from = document.getElementById("date-from").value;
+      const to = document.getElementById("date-to").value;
+      const lines = latestQuotes.map(quote => {
+        const date = quote.attributes?.issue_date || "Tarih yok";
+        return `${date}\t${quoteLabel(quote)}`;
+      });
+      const text = `Paraşüt teklifleri (${from} - ${to})\n\n${lines.join("\n")}${lines.length ? "\n" : ""}`;
+      const blob = new Blob(["\uFEFF", text], { type: "text/plain;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `parasut-teklifler-${from}-${to}.txt`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(link.href);
+    });
+  </script>
+</body>
+</html>
