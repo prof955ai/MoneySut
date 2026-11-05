@@ -70,7 +70,6 @@
     th, td { padding: 11px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
     th { color: var(--muted); font-size: .84rem; font-weight: 650; }
     td:first-child { width: 150px; white-space: nowrap; }
-    .empty { color: var(--muted); }
     [hidden] { display: none !important; }
     @media (max-width: 640px) {
       main { margin: 24px auto; }
@@ -111,7 +110,7 @@
           </div>
         </div>
         <div class="notice">
-          Token bu sayfada yalnızca isteği yapmak için kullanılır; kaydedilmez ve dosyaya eklenmez. Bu uygulamaya client secret veya Paraşüt hesap şifresi yazmayın.
+          Erişim belirteci bu bilgisayardaki yerel sunucuya gönderilir ve Paraşüt API isteğinde kullanılır; kaydedilmez veya günlük dosyasına yazılmaz. Client secret'ınızı ya da Paraşüt hesap şifrenizi girmeyin. Bu uygulama OAuth token'ı otomatik almaz.
         </div>
         <div class="actions">
           <button id="fetch-button" type="submit">Teklifleri getir</button>
@@ -136,9 +135,6 @@
   </main>
 
   <script>
-    // API çağrıları tarayıcıdan doğrudan Paraşüt'e gider. Tarayıcı CORS hatası verirse,
-    // güvenlik için token'ı bir sunucu tarafı ara servise taşımak gerekir.
-    const API_BASE = "https://api.parasut.com/v4";
     const form = document.getElementById("report-form");
     const fetchButton = document.getElementById("fetch-button");
     const downloadButton = document.getElementById("download-button");
@@ -155,69 +151,45 @@
 
     function quoteLabel(quote) {
       const a = quote.attributes || {};
-      // sales_quotes kaydında her hesapta "name" bulunmayabilir; number/description
-      // gibi alanlardan okunabilir bir ad türetiyoruz.
       const parts = [a.name, a.title, a.description, a.number]
         .map(value => value == null ? "" : String(value).trim())
         .filter(Boolean);
       return [...new Set(parts)].join(" — ") || `Teklif #${quote.id}`;
     }
 
-    async function readError(response) {
-      let detail = `HTTP ${response.status}`;
+    async function getError(response) {
       try {
         const body = await response.json();
         if (Array.isArray(body.errors) && body.errors.length) {
-          detail = body.errors.map(error => error.detail || error.title || error.code).filter(Boolean).join("; ") || detail;
-        } else if (body.message) {
-          detail = body.message;
+          return body.errors.map(error => error.detail || error.title || error.code).filter(Boolean).join("; ") || `HTTP ${response.status}`;
         }
-      } catch (_) { /* Yanıt JSON değilse genel HTTP mesajını kullan. */ }
-      return detail;
+        return body.error || body.message || `HTTP ${response.status}`;
+      } catch (_) {
+        return `HTTP ${response.status}`;
+      }
     }
 
-    async function loadAllQuotes(companyId, token, from, to) {
-      const firstUrl = new URL(`${API_BASE}/${encodeURIComponent(companyId)}/sales_quotes`);
-      firstUrl.searchParams.set("filter[issue_date][gte]", from);
-      firstUrl.searchParams.set("filter[issue_date][lte]", to);
-      firstUrl.searchParams.set("page[size]", "100");
-      firstUrl.searchParams.set("page[number]", "1");
-
-      const quotes = [];
-      const visited = new Set();
-      let url = firstUrl;
-      while (url && !visited.has(url.href)) {
-        visited.add(url.href);
-        const response = await fetch(url.href, {
-          headers: { "Authorization": `Bearer ${token}`, "Accept": "application/json" }
-        });
-        if (!response.ok) throw new Error(await readError(response));
-        const body = await response.json();
-        if (!Array.isArray(body.data)) throw new Error("API yanıtında beklenen teklifler listesi (data) bulunamadı.");
-        quotes.push(...body.data);
-
-        if (body.links && body.links.next) {
-          url = new URL(body.links.next, url);
-        } else if (body.data.length === 100) {
-          const nextUrl = new URL(url.href);
-          const currentPage = Number(nextUrl.searchParams.get("page[number]") || "1");
-          nextUrl.searchParams.set("page[number]", String(currentPage + 1));
-          url = nextUrl;
-        } else {
-          url = null;
-        }
-        setStatus(`${quotes.length} teklif alındı…`);
-      }
-      return quotes;
+    async function loadQuotes(companyId, token, from, to) {
+      const response = await fetch("/api/quotes", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({ companyId, from, to })
+      });
+      if (!response.ok) throw new Error(await getError(response));
+      const body = await response.json();
+      if (!Array.isArray(body.data)) throw new Error("Sunucu yanıtında teklifler listesi bulunamadı.");
+      return body.data;
     }
 
     function renderQuotes(quotes) {
       resultsBody.replaceChildren();
-      const sorted = [...quotes].sort((a, b) => {
-        const dateA = a.attributes?.issue_date || "";
-        const dateB = b.attributes?.issue_date || "";
-        return dateB.localeCompare(dateA);
-      });
+      const sorted = [...quotes].sort((a, b) =>
+        (b.attributes?.issue_date || "").localeCompare(a.attributes?.issue_date || "")
+      );
       for (const quote of sorted) {
         const row = document.createElement("tr");
         const dateCell = document.createElement("td");
@@ -248,14 +220,14 @@
       downloadButton.disabled = true;
       latestQuotes = [];
       resultsCard.hidden = true;
-      setStatus("Paraşüt API'sinden teklifler alınıyor…");
+      setStatus("Yerel sunucu üzerinden Paraşüt API'sinden teklifler alınıyor…");
       try {
-        latestQuotes = await loadAllQuotes(companyId, token, from, to);
+        latestQuotes = await loadQuotes(companyId, token, from, to);
         renderQuotes(latestQuotes);
         setStatus(`${latestQuotes.length} teklif bulundu.`, "success");
       } catch (error) {
         const message = error instanceof TypeError
-          ? "İstek yapılamadı. Bu bir CORS/ağ sorunu olabilir; sayfayı yerel sunucu üzerinden açıp deneyin. Devam ederse API CORS izni vermiyor olabilir."
+          ? "Yerel sunucuya ulaşılamadı. Terminalde 'npm start' komutunun çalıştığını ve http://127.0.0.1:3000 adresini açtığınızı kontrol edin."
           : error.message;
         setStatus(`Teklifler alınamadı: ${message}`, "error");
       } finally {
@@ -266,10 +238,9 @@
     downloadButton.addEventListener("click", () => {
       const from = document.getElementById("date-from").value;
       const to = document.getElementById("date-to").value;
-      const lines = latestQuotes.map(quote => {
-        const date = quote.attributes?.issue_date || "Tarih yok";
-        return `${date}\t${quoteLabel(quote)}`;
-      });
+      const lines = latestQuotes.map(quote =>
+        `${quote.attributes?.issue_date || "Tarih yok"}\t${quoteLabel(quote)}`
+      );
       const text = `Paraşüt teklifleri (${from} - ${to})\n\n${lines.join("\n")}${lines.length ? "\n" : ""}`;
       const blob = new Blob(["\uFEFF", text], { type: "text/plain;charset=utf-8" });
       const link = document.createElement("a");
@@ -278,7 +249,7 @@
       document.body.append(link);
       link.click();
       link.remove();
-      URL.revokeObjectURL(link.href);
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
     });
   </script>
 </body>

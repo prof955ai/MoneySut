@@ -1,0 +1,12 @@
+{
+  "name": "parasut-sales-quote-exporter",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local Paraşüt sales quote date-range exporter",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
